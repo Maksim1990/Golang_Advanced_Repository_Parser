@@ -40,13 +40,18 @@ func sortMapByKey(filesMap FileMap) []string {
 	return keys
 }
 
-func dirTree(out io.Writer, path string, printFiles bool) error {
+func dirTree(out io.Writer, path string, printFiles,printHiddenFiles bool) error {
 
 	var filesMap = make(map[string]FileCust)
 
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		found:=strings.HasPrefix(path, ".")
+		if printHiddenFiles {
+			found=false
+		}
 
-		if filepath.Base(path) != "." {
+		if filepath.Base(path) != "." && !found {
+
 			if printFiles {
 				filesMap[path] = FileCust{
 					isFile:   !info.IsDir(),
@@ -178,27 +183,36 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 			} else if countFile < len(files) {
 				addPipe = true
 			}
-			if len(files) == 1 && len(buildSubPipes) <= 1 {
+			if len(files) == 1 && len(buildSubPipes) < 1 {
 				addPipe = true
 			} else if len(files) > 1 {
 				addPipe = false
 			}
 
-			if intCount >= 2 && !lastFile {
+			if !lastFile && int(len(files))>=1 {
 				addPipe = true
 			}
 
 			if int(countFile) == int(len(files)) {
 				lastFile = true
 			}
+
 		}else{
 			if f.IsDir(){
 				countFile++
 			}
+			addPipe = true
 			//WHEN PRINT ONLY DIRECTORIES
-			if intCount >= 2 && !lastFile {
+			if  !lastFile {
 				addPipe = true
+			}else if lastFile && int(intfilterFiles)==1{
+				addPipe = false
+			}else if intCount==2 && lastFile && int(intfilterFiles)>1{
+				addPipe = false
 			}
+
+
+
 			if int(countFile) == int(intfilterFiles) {
 				lastFile = true
 			}
@@ -272,13 +286,14 @@ func buildSubPipesForInnerFiles(isPrintRoot bool, countFile, intFiles int, build
 
 func main() {
 	out := os.Stdout
-	if !(len(os.Args) == 2 || len(os.Args) == 3) {
+	if !(len(os.Args) == 2 || len(os.Args) == 3  || len(os.Args) == 4) {
 		panic("usage go run main.go . [-f]")
 	}
 	path := os.Args[1]
 	printFiles := len(os.Args) == 3 && os.Args[2] == "-f"
+	printHiddenFiles := (len(os.Args) == 4 && os.Args[3] == "-h") || (len(os.Args) == 3 && os.Args[2] == "-h")
 
-	err := dirTree(out, path, printFiles)
+	err := dirTree(out, path, printFiles,printHiddenFiles)
 	if err != nil {
 		panic(err.Error())
 	}
