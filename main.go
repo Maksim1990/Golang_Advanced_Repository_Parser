@@ -290,9 +290,9 @@ func main() {
 		panic("usage go run main.go . [-f]")
 	}
 	path := os.Args[1]
-	printFiles := len(os.Args) == 3 && os.Args[2] == "-f"
+	printFiles := (len(os.Args) == 3 || len(os.Args) == 4) && os.Args[2] == "-f"
 	printHiddenFiles := (len(os.Args) == 4 && os.Args[3] == "-h") || (len(os.Args) == 3 && os.Args[2] == "-h")
-
+	
 	err := dirTree(out, path, printFiles,printHiddenFiles)
 	if err != nil {
 		panic(err.Error())
