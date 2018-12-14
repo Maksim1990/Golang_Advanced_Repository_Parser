@@ -11,7 +11,7 @@ git clone https://github.com/Maksim1990/Golang_Advanced_Repository_Parser.git [A
 ```
 cd [APP_NAME]
 ```
-## THIS IS ALL
+## THIS IS ALL!!!
 
 ### How to use with different options
 
