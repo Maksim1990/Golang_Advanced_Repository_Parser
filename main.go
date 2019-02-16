@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,6 +30,7 @@ type FileMap map[string]FileCust
 
 var buildSubPipes []bool
 var addPipe = true
+var strResult string
 
 func sortMapByKey(filesMap FileMap) []string {
 	keys := make([]string, 0, len(filesMap))
@@ -40,14 +42,15 @@ func sortMapByKey(filesMap FileMap) []string {
 	return keys
 }
 
-func dirTree(out io.Writer, path string, printFiles,printHiddenFiles bool) error {
+func dirTree(out io.Writer, path string, printFiles bool) error {
 
+	var printHiddenFiles = false
 	var filesMap = make(map[string]FileCust)
 
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		found:=strings.HasPrefix(path, ".")
+		found := strings.HasPrefix(path, ".")
 		if printHiddenFiles {
-			found=false
+			found = false
 		}
 
 		if filepath.Base(path) != "." && !found {
@@ -104,8 +107,6 @@ func dirTree(out io.Writer, path string, printFiles,printHiddenFiles bool) error
 
 				if val {
 					delete(checkedRoutes, f[0])
-					strPipe := generatePipeType(int(countFolders), filesInTheRoot)
-					fmt.Println(strPipe + f[0])
 
 					isPrintRootPipe := true
 					if countFolders >= filesInTheRoot {
@@ -113,7 +114,6 @@ func dirTree(out io.Writer, path string, printFiles,printHiddenFiles bool) error
 					}
 					printTreeRecursive(f[0], printFiles, true, 0, isPrintRootPipe, false)
 				}
-
 			}
 		} else {
 
@@ -121,29 +121,33 @@ func dirTree(out io.Writer, path string, printFiles,printHiddenFiles bool) error
 				countFolders++
 				strPipe := generatePipeType(int(countFolders), filesInTheRoot)
 				size := printSize(int(filesMap[k].intSize))
-				fmt.Println(strPipe + f[0] + size)
+				createResultString(strPipe + f[0] + size)
 			}
 		}
 	}
+
+	//WRITING RESULT OF dirTree IN THE BUFFER
+	strResult := getResultStringAndReset()
+	out.Write([]byte(strResult))
+
 	return nil
 }
 
+//-- Return relevant pipe type
 func generatePipeType(countFolders, filesInTheRoot int) string {
 	strPipe := strFullPipe
-
 	if int(countFolders) == filesInTheRoot {
 		strPipe = strLastPipe
 	}
-
 	return strPipe
 }
 
+//-- Print size of file
 func printSize(fileSize int) string {
 	size := " (" + strconv.Itoa(fileSize) + "b)"
 	if fileSize == 0 {
 		size = " (empty)"
 	}
-
 	return size
 }
 
@@ -161,7 +165,7 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 		buildSubPipes = make([]bool, 0)
 	}
 
-	intfilterFiles:=0
+	intfilterFiles := 0
 	for _, f := range files {
 		if f.IsDir() {
 			intfilterFiles++
@@ -172,9 +176,8 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 
 	for _, f := range files {
 
-
 		addPipe = false
-		intNumberOfFilesInDir:=int(len(files))
+		intNumberOfFilesInDir := int(len(files))
 		if printFiles {
 			countFile++
 			//WHEN PRINT FILES AND DIRECTORIES
@@ -189,7 +192,7 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 				addPipe = false
 			}
 
-			if !lastFile && int(len(files))>=1 {
+			if !lastFile && int(len(files)) >= 1 {
 				addPipe = true
 			}
 
@@ -197,28 +200,25 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 				lastFile = true
 			}
 
-		}else{
-			if f.IsDir(){
+		} else {
+			if f.IsDir() {
 				countFile++
 			}
 			addPipe = true
 			//WHEN PRINT ONLY DIRECTORIES
-			if  !lastFile {
+			if !lastFile {
 				addPipe = true
-			}else if lastFile && int(intfilterFiles)==1{
+			} else if lastFile && int(intfilterFiles) == 1 {
 				addPipe = false
-			}else if intCount==2 && lastFile && int(intfilterFiles)>1{
+			} else if intCount == 2 && lastFile && int(intfilterFiles) > 1 {
 				addPipe = false
 			}
-
-
 
 			if int(countFile) == int(intfilterFiles) {
 				lastFile = true
 			}
-			intNumberOfFilesInDir=int(intfilterFiles)
+			intNumberOfFilesInDir = int(intfilterFiles)
 		}
-
 
 		if !isRoot {
 
@@ -232,14 +232,14 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 		} else {
 			buildSubPipes = make([]bool, 0)
 		}
-		strPipeRes := buildSubPipesForInnerFiles(isPrintRootPipe, int(countFile), int(intNumberOfFilesInDir), buildSubPipes)
+		strPipeRes := buildSubPipesForInnerFiles(int(countFile), int(intNumberOfFilesInDir), buildSubPipes)
 		if f.IsDir() {
 
 			pathFull := string(path + string(Separator) + f.Name())
 			if !isRoot {
-				fmt.Println(strPipeRes + f.Name())
+				createResultString(strPipeRes + f.Name())
 			} else {
-				fmt.Println(strPipeRes + f.Name())
+				createResultString(strPipeRes + f.Name())
 			}
 
 			// Print recursively folder content
@@ -250,52 +250,57 @@ func printTreeRecursive(path string, printFiles, isRoot bool, intCount int, isPr
 				size := printSize(int(f.Size()))
 
 				if isRoot && !f.IsDir() {
-					fmt.Println(strPipeRes + f.Name() + size)
+					createResultString(strPipeRes + f.Name() + size)
 				} else {
-					fmt.Println(strPipeRes + f.Name() + size)
+					createResultString(strPipeRes + f.Name() + size)
 				}
 			}
 		}
-
 	}
 }
 
-func buildSubPipesForInnerFiles(isPrintRoot bool, countFile, intFiles int, buildSubPipes []bool) string {
+//-- Functionality to draw pipes for subfiles in the folder
+func buildSubPipesForInnerFiles(countFile, intFiles int, buildSubPipes []bool) string {
 	strPipe := generatePipeType(countFile, intFiles)
 	var strPipeResult string
 
-	if isPrintRoot {
-		strPipeResult += strSimplePipe + "\t"
-	} else {
-		strPipeResult += "\t"
+	for _, val := range buildSubPipes {
+		if val {
+			strPipeResult += strSimplePipe + "\t"
+		} else {
+			strPipeResult += "\t"
+		}
 	}
 
-
-		for _, val := range buildSubPipes {
-			if val {
-				strPipeResult += strSimplePipe + "\t"
-			} else {
-				strPipeResult += "\t"
-			}
-		}
-
 	strPipeResult += strPipe
-
 	return strPipeResult
 }
 
+//-- Write all output in the string for later transfer it into buffer
+func createResultString(strAdd string) {
+	strResult += strAdd + "\n"
+}
+
+//-- Return result of dirTree function and reset temporary result storage string
+func getResultStringAndReset() string {
+	res:=strResult
+	strResult=""
+	return res
+}
+
 func main() {
-	out := os.Stdout
-	if !(len(os.Args) == 2 || len(os.Args) == 3  || len(os.Args) == 4) {
+	out := new(bytes.Buffer)
+	outStd := os.Stdout
+	if !(len(os.Args) == 2 || len(os.Args) == 3 || len(os.Args) == 4) {
 		panic("usage go run main.go . [-f]")
 	}
 	path := os.Args[1]
 	printFiles := (len(os.Args) == 3 || len(os.Args) == 4) && os.Args[2] == "-f"
-	printHiddenFiles := (len(os.Args) == 4 && os.Args[3] == "-h") || (len(os.Args) == 3 && os.Args[2] == "-h")
-	
-	err := dirTree(out, path, printFiles,printHiddenFiles)
+	err := dirTree(outStd, path, printFiles)
 	if err != nil {
 		panic(err.Error())
 	}
 
+	result := out.String()
+	fmt.Println(result)
 }
