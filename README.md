@@ -39,8 +39,9 @@ go run main.go . -h
 ```
 ![Mockup for feature A](https://github.com/Maksim1990/Golang_Advanced_Repository_Parser/blob/master/img/go1_4.PNG?raw=true)
 
+## Unit Tests
 
-### 4) FOR START UNIT TESTS RUN FOLLOWING COMMAND
+### FOR START UNIT TESTS RUN FOLLOWING COMMAND
 ```
 go test -v
 ```
